@@ -165,32 +165,30 @@ export class DebtorsService {
       archived: false,
     };
 
-    // 1. Tablar bo'yicha hisob-kitoblar (Top counts: 20 Yangi, 17 Jarayonda, 11 To'lagan, Barchasi)
-    const [yangiCount, jarayondaCount, tolaganCount, barchasiCount] = await Promise.all([
-      this.prisma.debtor.count({
-        where: { ...baseWhere, status: DebtorStatus.NEW },
-      }),
-      this.prisma.debtor.count({
-        where: {
-          ...baseWhere,
-          status: {
-            in: [
-              DebtorStatus.PROMISED,
-              DebtorStatus.NOT_HOME,
-              DebtorStatus.NO_MONEY,
-              DebtorStatus.PHONE_OFF,
-              DebtorStatus.MOVED,
-            ],
-          },
-        },
-      }),
-      this.prisma.debtor.count({
-        where: { ...baseWhere, status: DebtorStatus.PAID },
+    // 1. Tablar bo'yicha hisob-kitoblar (Bitta groupBy so'rovi bilan juda tez hisoblanadi)
+    const [statusGroups, barchasiCount] = await Promise.all([
+      this.prisma.debtor.groupBy({
+        by: ['status'],
+        where: baseWhere,
+        _count: { _all: true },
       }),
       this.prisma.debtor.count({
         where: baseWhere,
       }),
     ]);
+
+    const statusMap: Record<string, number> = {};
+    for (const g of statusGroups) {
+      statusMap[g.status] = g._count._all;
+    }
+    const yangiCount = statusMap[DebtorStatus.NEW] || 0;
+    const tolaganCount = statusMap[DebtorStatus.PAID] || 0;
+    const jarayondaCount =
+      (statusMap[DebtorStatus.PROMISED] || 0) +
+      (statusMap[DebtorStatus.NOT_HOME] || 0) +
+      (statusMap[DebtorStatus.NO_MONEY] || 0) +
+      (statusMap[DebtorStatus.PHONE_OFF] || 0) +
+      (statusMap[DebtorStatus.MOVED] || 0);
 
     const where: Prisma.DebtorWhereInput = { ...baseWhere };
 

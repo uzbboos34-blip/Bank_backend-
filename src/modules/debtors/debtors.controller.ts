@@ -145,7 +145,11 @@ export class DebtorsController {
       body.note ? `💬 Izoh: ${body.note}` : '',
     ].filter(Boolean).join('\n');
 
-    const sent = await this.telegramService.sendPhoto(body.imageBase64, caption);
-    return { success: sent, message: sent ? 'Rasm yuborildi' : 'Yuborishda xatolik' };
+    // Telegramga yuborish orqa fonda asinxron ketadi — foydalanuvchi kutib turmaydi!
+    this.telegramService.sendPhoto(body.imageBase64, caption).catch((err) => {
+      // Background log
+    });
+
+    return { success: true, message: 'Rasm fonda yuborilmoqda' };
   }
 }

@@ -49,16 +49,18 @@ export class TelegramService implements OnModuleInit {
    * @param imageBase64 - base64 formatidagi rasm
    * @param caption     - rasm ostidagi matn
    */
-  async sendPhoto(imageBase64: string, caption: string): Promise<boolean> {
+  async sendPhoto(imageBase64: string, caption: string): Promise<{ success: boolean; message: string }> {
     if (!this.isConnected || !this.client) {
-      this.logger.warn('Telegram ulangan emas — rasm yuborilmadi');
-      return false;
+      const msg = `Telegram ulangan emas (connected: ${this.isConnected})`;
+      this.logger.warn(msg);
+      return { success: false, message: msg };
     }
 
     const chatId = this.config.get<string>('TG_CHAT_ID');
     if (!chatId) {
-      this.logger.warn('TG_CHAT_ID topilmadi');
-      return false;
+      const msg = 'TG_CHAT_ID sozlanmagan';
+      this.logger.warn(msg);
+      return { success: false, message: msg };
     }
 
     // base64 → temp fayl
@@ -73,10 +75,11 @@ export class TelegramService implements OnModuleInit {
       });
 
       this.logger.log(`📸 Rasm guruhga yuborildi: ${chatId}`);
-      return true;
-    } catch (err) {
-      this.logger.error('Rasm yuborishda xatolik: ' + err.message);
-      return false;
+      return { success: true, message: 'Rasm yuborildi' };
+    } catch (err: any) {
+      const msg = 'Telegram sendFile xatosi: ' + (err.message || String(err));
+      this.logger.error(msg);
+      return { success: false, message: msg };
     } finally {
       // Temp faylni o'chiramiz
       if (fs.existsSync(tmpPath)) {

@@ -111,7 +111,7 @@ export class DebtorsController {
   async sendPhoto(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: CurrentUserPayload,
-    @Body() body: { imageBase64: string; status: string; note?: string },
+    @Body() body: { imageBase64: string; status: string; note?: string; takenAt?: string | number },
   ) {
     // Qarzdor ma'lumotlarini olamiz
     const debtor = await this.debtorsService.getDebtorById(id, user.id);
@@ -125,10 +125,15 @@ export class DebtorsController {
       PAID: "To'ladi",
     };
 
-    const now = new Date();
-    const dateStr = now.toLocaleDateString('uz-UZ', {
-      day: 'numeric', month: 'long', year: 'numeric',
-      hour: '2-digit', minute: '2-digit',
+    // Rasm olingan vaqt (Toshkent vaqti bilan)
+    const photoTime = body.takenAt ? new Date(Number(body.takenAt) || body.takenAt) : new Date();
+    const dateStr = photoTime.toLocaleDateString('uz-UZ', {
+      timeZone: 'Asia/Tashkent',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
     });
 
     const caption = [
@@ -137,7 +142,6 @@ export class DebtorsController {
       `📍 ${debtor.mfy || ''} ${debtor.address || ''}`.trim(),
       `📋 Holat: ${statusLabels[body.status] || body.status}`,
       `📅 ${dateStr}`,
-      `👨‍💼 Kollektor: ${user.login || 'bank_collector'}`,
       body.note ? `💬 Izoh: ${body.note}` : '',
     ].filter(Boolean).join('\n');
 

@@ -58,6 +58,14 @@ async function bootstrap() {
   );
   app.useGlobalFilters(new AllExceptionsFilter());
 
+  // /api prefiksi bilan kelgan so'rovlarni avtomatik to'g'rilash (moslashuvchanlik uchun)
+  app.use((req: any, res: any, next: any) => {
+    if (req.url.startsWith('/api/')) {
+      req.url = req.url.replace(/^\/api/, '');
+    }
+    next();
+  });
+
   // Validatsiya sozlamalari
   app.useGlobalPipes(
     new ValidationPipe({

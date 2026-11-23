@@ -270,9 +270,9 @@ export class DebtorsService {
       }),
     ]);
 
-    // Masofa hisoblash (User lokatsiyasiga qarab yoki chiroyli demo masofa)
-    const uLat = query.userLat || 41.2995;
-    const uLng = query.userLng || 69.2401;
+    // Masofa hisoblash (User lokatsiyasiga qarab yoki Beruniy markaziga qarab)
+    const uLat = query.userLat || 41.6911; // Beruniy kengligi
+    const uLng = query.userLng || 60.7525; // Beruniy uzunligi
 
     const items = rawItems.map((debtor, idx) => {
       let distanceMeters: number;
@@ -356,8 +356,9 @@ export class DebtorsService {
       throw new NotFoundException('Qarzdor topilmadi');
     }
 
-    const uLat = userLat || 41.2995;
-    const uLng = userLng || 69.2401;
+    // Beruniy markaziy koordinatasi (Toshkent emas)
+    const uLat = userLat || 41.6911;
+    const uLng = userLng || 60.7525;
     let distanceMeters = 500;
     if (debtor.lat && debtor.lng) {
       distanceMeters = getDistanceMeters(uLat, uLng, debtor.lat, debtor.lng);

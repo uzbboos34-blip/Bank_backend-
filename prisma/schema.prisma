@@ -1,0 +1,93 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  SUPER_ADMIN
+  COLLECTOR
+}
+
+enum DebtorStatus {
+  NEW
+  NOT_HOME
+  PROMISED
+  NO_MONEY
+  PHONE_OFF
+  MOVED
+  PAID
+}
+
+model User {
+  id        Int       @id @default(autoincrement())
+  login     String    @unique
+  pinHash   String
+  fullName  String?   // Hodimning ism-sharifi
+  role      Role      @default(COLLECTOR)
+  isActive  Boolean   @default(true) // Faol yoki bloklangan
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now()) @updatedAt
+
+  debtors   Debtor[]
+
+  @@map("users")
+}
+
+model Debtor {
+  id            Int          @id @default(autoincrement())
+  userId        Int
+  externalId    String       // Excelning "ID" ustuni (masalan: 5715018), userId bilan birga unique
+  treasuryId    String?      // Хазна ид (xazna ID, masalan: 12363459)
+  code          String?      // к/с (kredit kodi, masalan: 227, 164)
+  overdueDays   Int          @default(0) // Муд. ўт. кун (muddatidan o'tgan kunlar)
+  officer       String?      // масъул ходим / филиал
+  mfy           String?      // МФЙ (masalan: Саройпули МФЙ, Қиёт МФЙ)
+  rawContract   String?      // Excelning "Шартнома" katagidagi asl matn
+  fullName      String       // Мижоз номи (F.I.SH)
+  address       String?      // Манзил (ko'cha, uy, xonadon)
+  phones        String[]     @default([]) // Телефон рақамлари
+  phoneNote     String?      // Телефон ёнидаги қўшимча изоҳлар
+  loanAmount    Decimal      @default(0) @db.Decimal(18, 2) // Кредит суммаси (сум.экв)
+  issuedAt      DateTime?    // Берилган сана
+  closingAt     DateTime?    // Тугалланиш сана
+  principalDebt Decimal      @default(0) @db.Decimal(18, 2) // Жами асосий қарздорлик
+  interestDebt  Decimal      @default(0) @db.Decimal(18, 2) // Просент / фоиз қарзи
+  totalDebt     Decimal      @default(0) @db.Decimal(18, 2) // Жами қарздорлик
+  minDebt       Decimal      @default(0) @db.Decimal(18, 2) // ЖАМИ минимал
+  status        DebtorStatus @default(NEW)
+  promiseDate   DateTime?
+  lat           Float?
+  lng           Float?
+  archived      Boolean      @default(false)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @default(now()) @updatedAt
+
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notes         Note[]
+
+  @@unique([externalId, userId])
+  @@index([userId, status])
+  @@index([userId, archived])
+  @@index([userId, promiseDate])
+  @@index([userId, mfy])
+  @@index([userId, minDebt])
+  @@map("debtors")
+}
+
+model Note {
+  id        Int           @id @default(autoincrement())
+  debtorId  Int
+  status    DebtorStatus?
+  text      String?
+  clientId  String        @unique // idempotentlik uchun unique
+  createdAt DateTime      @default(now())
+
+  debtor    Debtor        @relation(fields: [debtorId], references: [id], onDelete: Cascade)
+
+  @@index([debtorId, createdAt])
+  @@map("notes")
+}

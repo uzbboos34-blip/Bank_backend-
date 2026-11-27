@@ -245,7 +245,8 @@ export function parseExcelBuffer(buffer: Buffer): ExcelImportRowResult[] {
     const principal = parseDecimal(getVal('principalDebt'));
     const interest = parseDecimal(getVal('interestDebt'));
     const parsedTotalDebt = parseDecimal(getVal('totalDebt'));
-    const finalTotalDebt = parsedTotalDebt > 0 ? parsedTotalDebt : principal + interest;
+    // Hech qachon principal + interest qilib qo'shib yubormaymiz — Exceldagi asl qiymatni olamiz!
+    const finalTotalDebt = parsedTotalDebt > 0 ? parsedTotalDebt : interest;
 
     const minDebt = parseDecimal(getVal('minDebt'));
 

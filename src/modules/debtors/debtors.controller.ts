@@ -156,7 +156,14 @@ export class DebtorsController {
   async sendPhoto(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: CurrentUserPayload,
-    @Body() body: { imageBase64: string; status: string; note?: string; takenAt?: string | number },
+    @Body() body: {
+      imageBase64: string;
+      status: string;
+      note?: string;
+      takenAt?: string | number;
+      promiseDate?: string;
+      paidAmount?: number | string;
+    },
   ) {
     // Qarzdor ma'lumotlarini olamiz
     const debtor = await this.debtorsService.getDebtorById(id, user.id);
@@ -181,11 +188,55 @@ export class DebtorsController {
       minute: '2-digit',
     });
 
+    // Va'da sanasi (agar "Va'da berdi" bo'lsa)
+    let promiseLine = '';
+    if (body.status === 'PROMISED') {
+      const rawPromise = body.promiseDate || debtor.promiseDate;
+      if (rawPromise) {
+        const pDate = new Date(rawPromise);
+        if (!isNaN(pDate.getTime())) {
+          const pStr = pDate.toLocaleDateString('ru-RU', {
+            timeZone: 'Asia/Tashkent',
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+          });
+          promiseLine = `🗓 Va'da sanasi: ${pStr}`;
+        }
+      }
+    }
+
+    // To'langan summa (agar "To'ladi" bo'lsa)
+    let paidLine = '';
+    if (body.status === 'PAID') {
+      let amountNum = Number(String(body.paidAmount ?? '').replace(/[^0-9]/g, '')) || 0;
+      if (!amountNum && body.note) {
+        const m = body.note.match(/([0-9][0-9\s.,]*)/);
+        if (m) amountNum = Number(m[1].replace(/[^0-9]/g, '')) || 0;
+      }
+      if (!amountNum && debtor.notes?.[0]?.text) {
+        const m = debtor.notes[0].text.match(/([0-9][0-9\s.,]*)/);
+        if (m) amountNum = Number(m[1].replace(/[^0-9]/g, '')) || 0;
+      }
+      if (amountNum > 0) {
+        paidLine = `💰 To'lagan summa: ${new Intl.NumberFormat('uz-UZ').format(amountNum)} so'm`;
+      }
+    }
+
+    // Manzil takrorlanishini oldini olish (MFY address ichida bo'lsa)
+    const mfyStr = (debtor.mfy || '').trim();
+    const addrStr = (debtor.address || '').trim();
+    const locationStr = mfyStr && addrStr.toLowerCase().includes(mfyStr.toLowerCase())
+      ? addrStr
+      : `${mfyStr} ${addrStr}`.trim();
+
     const caption = [
       `📸 TASHRIF ISBOTI`,
       `👤 ${debtor.fullName}`,
-      `📍 ${debtor.mfy || ''} ${debtor.address || ''}`.trim(),
+      locationStr ? `📍 ${locationStr}` : '',
       `📋 Holat: ${statusLabels[body.status] || body.status}`,
+      promiseLine,
+      paidLine,
       `📅 ${dateStr}`,
       body.note ? `💬 Izoh: ${body.note}` : '',
     ].filter(Boolean).join('\n');

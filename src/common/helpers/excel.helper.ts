@@ -165,6 +165,17 @@ export function parseExcelBuffer(buffer: Buffer): ExcelImportRowResult[] {
     else if (norm.includes('minimal') || norm.includes('минимал') || norm.includes('mindebt')) columnIndexMap['minDebt'] = idx;
   });
 
+  // Xazna ID dan keyingi keladigan ustun — har doim kun (overdueDays) sifatida olinadi
+  if (columnIndexMap['treasuryId'] !== undefined) {
+    const nextIdx = columnIndexMap['treasuryId'] + 1;
+    if (nextIdx < headerRow.length) {
+      columnIndexMap['overdueDays'] = nextIdx;
+      if (columnIndexMap['code'] === nextIdx) {
+        delete columnIndexMap['code'];
+      }
+    }
+  }
+
   // Agar Berilgan sana topilgan bo'lsa-yu, Tugallanish sana topilmagan bo'lsa — keyingi sana ustunini tekshiramiz
   if (columnIndexMap['issuedAt'] !== undefined && columnIndexMap['closingAt'] === undefined) {
     const nextIdx = columnIndexMap['issuedAt'] + 1;

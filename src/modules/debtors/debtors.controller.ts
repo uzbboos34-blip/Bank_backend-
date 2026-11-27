@@ -230,6 +230,11 @@ export class DebtorsController {
       ? addrStr
       : `${mfyStr} ${addrStr}`.trim();
 
+    // Izohdan "To'ladi: X so'm." qismini olib tashlash (takrorlanmasligi uchun)
+    const cleanNote = (body.note || '')
+      .replace(/^To['’`]?ladi:\s*[0-9\s.,]+\s*(?:so['’`]?m|som|сум)?\.?\s*/i, '')
+      .trim();
+
     const caption = [
       `📸 TASHRIF ISBOTI`,
       `👤 ${debtor.fullName}`,
@@ -238,7 +243,7 @@ export class DebtorsController {
       promiseLine,
       paidLine,
       `📅 ${dateStr}`,
-      body.note ? `💬 Izoh: ${body.note}` : '',
+      cleanNote ? `💬 Izoh: ${cleanNote}` : '',
     ].filter(Boolean).join('\n');
 
     // Telegramga yuborish orqa fonda asinxron ketadi — foydalanuvchi kutib turmaydi!

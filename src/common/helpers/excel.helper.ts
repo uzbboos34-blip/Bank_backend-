@@ -182,7 +182,8 @@ export function parseExcelBuffer(buffer: Buffer): ExcelImportRowResult[] {
 
     // Telefon va manzilni ajratish
     const sourceTextForExtraction = `${explicitPhone} ${rawContract} ${explicitAddress}`;
-    const { phones, address: extractedAddress } = extractPhonesAndAddress(sourceTextForExtraction);
+    const { phones: extractedPhones, address: extractedAddress } = extractPhonesAndAddress(sourceTextForExtraction);
+    const phones = extractedPhones.length > 0 ? extractedPhones : (explicitPhone ? [explicitPhone] : []);
 
     const finalAddress = explicitAddress || extractedAddress || undefined;
 

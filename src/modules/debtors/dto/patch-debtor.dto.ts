@@ -1,5 +1,13 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsDateString, IsEnum, IsNumber, IsOptional, ValidateIf } from 'class-validator';
+import {
+  IsArray,
+  IsDateString,
+  IsEnum,
+  IsNumber,
+  IsOptional,
+  IsString,
+  ValidateIf,
+} from 'class-validator';
 import { DebtorStatus } from '@prisma/client';
 
 export class PatchDebtorDto {
@@ -27,4 +35,19 @@ export class PatchDebtorDto {
   @IsOptional()
   @IsNumber({}, { message: 'lng son ko\'rinishida bo\'lishi kerak' })
   lng?: number;
+
+  // ---- YANGI: Telefon raqamlar va manzil tahrirlash ----
+  @ApiPropertyOptional({
+    type: [String],
+    description: 'Telefon raqamlar ro\'yxati (raqamlar, harflar, +, -, bo\'sh joy bo\'lishi mumkin)',
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  phones?: string[];
+
+  @ApiPropertyOptional({ type: String, description: 'Manzil (yangilash)' })
+  @IsOptional()
+  @IsString()
+  address?: string;
 }

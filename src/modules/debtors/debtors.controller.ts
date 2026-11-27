@@ -3,14 +3,17 @@ import {
   Get,
   Patch,
   Post,
+  Delete,
   Param,
   Query,
   Body,
+  Res,
   UseInterceptors,
   UploadedFile,
   ParseIntPipe,
   BadRequestException,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBearerAuth,
@@ -25,6 +28,7 @@ import { CurrentUserPayload } from 'src/common/types/user';
 import { DebtorsService } from './debtors.service';
 import { GetDebtorsQueryDto } from './dto/get-debtors-query.dto';
 import { PatchDebtorDto } from './dto/patch-debtor.dto';
+import { BulkDeleteDto } from './dto/bulk-delete.dto';
 import { TelegramService } from '../telegram/telegram.service';
 
 @ApiTags('Debtors')
@@ -63,7 +67,24 @@ export class DebtorsController {
     if (!file) {
       throw new BadRequestException('Iltimos, Excel faylni yuklang (field "file")');
     }
-    return this.debtorsService.importExcel(file.buffer, user.id);
+    return this.debtorsService.importDebtors(user.id, file.buffer);
+  }
+
+  @Get('export')
+  @ApiOperation({ summary: 'Qarzdorlar ro\'yxatini haqiqiy Excel (.xlsx) fayl sifatida yuklab olish' })
+  async exportDebtors(
+    @CurrentUser() user: CurrentUserPayload,
+    @Query() query: GetDebtorsQueryDto,
+    @Res() res: Response,
+  ) {
+    const buffer = await this.debtorsService.exportExcel(user.id, query);
+    const fileName = `NPL_Kreditlar_Portfeli_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    res.set({
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition': `attachment; filename="${fileName}"`,
+      'Content-Length': buffer.length,
+    });
+    res.end(buffer);
   }
 
   @Get()
@@ -103,6 +124,27 @@ export class DebtorsController {
     @Body() dto: PatchDebtorDto,
   ) {
     return this.debtorsService.patchDebtor(id, user.id, dto);
+  }
+
+  @Delete('bulk')
+  @ApiOperation({ summary: "Ko'p qarzdorlarni bir vaqtda o'chirish" })
+  @ApiResponse({ status: 200, description: "O'chirilgan qarzdorlar soni" })
+  async bulkDelete(
+    @CurrentUser() user: CurrentUserPayload,
+    @Body() dto: BulkDeleteDto,
+  ) {
+    return this.debtorsService.bulkDelete(dto.ids, user.id);
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: "Bitta qarzdorni o'chirish" })
+  @ApiResponse({ status: 200, description: "Muvaffaqiyatli o'chirildi" })
+  @ApiResponse({ status: 404, description: 'Qarzdor topilmadi' })
+  async deleteDebtor(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: CurrentUserPayload,
+  ) {
+    return this.debtorsService.deleteDebtor(id, user.id);
   }
 
   @Post(':id/send-photo')

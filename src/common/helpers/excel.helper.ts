@@ -120,7 +120,22 @@ export function parseExcelBuffer(buffer: Buffer): ExcelImportRowResult[] {
 
     if (norm === 'id' || norm === 'ид' || norm === 'externalid') columnIndexMap['externalId'] = idx;
     else if (norm.includes('xazna') || norm.includes('хазна') || norm.includes('treasury')) columnIndexMap['treasuryId'] = idx;
-    else if (norm.includes('makskun') || norm.includes('макскун') || norm.includes('mudotkun') || norm.includes('мудоткун') || norm.includes('muddat') || norm.includes('overdue') || norm.includes('макс') || norm === 'кун' || norm === 'kun') columnIndexMap['overdueDays'] = idx;
+    else if (
+      norm === 'пр' ||
+      norm.includes('проср') ||
+      norm.includes('пркун') ||
+      norm.includes('makskun') ||
+      norm.includes('макскун') ||
+      norm.includes('mudotkun') ||
+      norm.includes('мудоткун') ||
+      norm.includes('muddat') ||
+      norm.includes('overdue') ||
+      norm.includes('макс') ||
+      norm === 'кун' ||
+      norm === 'kun'
+    ) {
+      if (columnIndexMap['overdueDays'] === undefined) columnIndexMap['overdueDays'] = idx;
+    }
     else if (norm.includes('22band') || norm.includes('22банд') || norm.includes('band') || norm.includes('банд') || norm === 'kc' || norm === 'кс' || norm.includes('kod') || norm.includes('коды') || norm === 'code') columnIndexMap['code'] = idx;
     else if (norm.includes('masulxodim') || norm.includes('масъулходим') || norm.includes('officer')) columnIndexMap['officer'] = idx;
     else if (norm.includes('mfy') || norm.includes('мфй') || norm.includes('mahalla') || norm.includes('маҳалла')) columnIndexMap['mfy'] = idx;
@@ -129,13 +144,35 @@ export function parseExcelBuffer(buffer: Buffer): ExcelImportRowResult[] {
     else if (norm.includes('telefon') || norm.includes('телефон') || norm === 'tel' || norm === 'тел' || norm.includes('phone')) columnIndexMap['phones'] = idx;
     else if (norm.includes('mijoznomi') || norm.includes('мижозноми') || norm.includes('mijoz') || norm.includes('мижоз') || norm.includes('fio') || norm.includes('фио')) columnIndexMap['fullName'] = idx;
     else if (norm.includes('kreditsummasi') || norm.includes('кредитсуммаси') || norm.includes('loanamount') || norm.includes('сумэкв')) columnIndexMap['loanAmount'] = idx;
-    else if (norm.includes('berilgansana') || norm.includes('берилгансана')) columnIndexMap['issuedAt'] = idx;
-    else if (norm.includes('tugallanishsana') || norm.includes('тугалланишсана') || norm.includes('yopiladigansana') || norm.includes('ёпиладигансана')) columnIndexMap['closingAt'] = idx;
+    else if (norm.includes('berilgansana') || norm.includes('берилгансана') || norm.includes('берилган')) columnIndexMap['issuedAt'] = idx;
+    else if (
+      norm.includes('tugallanishsana') ||
+      norm.includes('тугалланишсана') ||
+      norm.includes('yopiladigansana') ||
+      norm.includes('ёпиладигансана') ||
+      norm.includes('епиладиган') ||
+      norm.includes('ёпиладиган') ||
+      norm.includes('етиладиган') ||
+      norm.includes('тугаш') ||
+      norm.includes('тугал') ||
+      norm.includes('қайтариш') ||
+      norm.includes('кайтариш') ||
+      norm.includes('closing')
+    ) columnIndexMap['closingAt'] = idx;
     else if (norm.includes('asosiyqarzdorlik') || norm.includes('асосийқарздорлик') || norm.includes('asosiy')) columnIndexMap['principalDebt'] = idx;
     else if (norm.includes('prosent') || norm.includes('просент') || norm.includes('foiz') || norm.includes('фоиз')) columnIndexMap['interestDebt'] = idx;
     else if (norm.includes('jamiqarzdorlik') || norm.includes('жамиқарздорлик') || norm.includes('totaldebt')) columnIndexMap['totalDebt'] = idx;
     else if (norm.includes('minimal') || norm.includes('минимал') || norm.includes('mindebt')) columnIndexMap['minDebt'] = idx;
   });
+
+  // Agar Berilgan sana topilgan bo'lsa-yu, Tugallanish sana topilmagan bo'lsa — keyingi sana ustunini tekshiramiz
+  if (columnIndexMap['issuedAt'] !== undefined && columnIndexMap['closingAt'] === undefined) {
+    const nextIdx = columnIndexMap['issuedAt'] + 1;
+    const nextHeader = normalizeHeader(String(headerRow[nextIdx] || ''));
+    if (nextHeader.includes('сана') || nextHeader.includes('sana') || nextHeader.includes('date')) {
+      columnIndexMap['closingAt'] = nextIdx;
+    }
+  }
 
   const hasDebtColumn =
     columnIndexMap['principalDebt'] !== undefined ||
@@ -186,12 +223,22 @@ export function parseExcelBuffer(buffer: Buffer): ExcelImportRowResult[] {
 
     const rawContract = String(getVal('rawContract') ?? '').trim();
     const explicitAddress = getVal('address') ? String(getVal('address')).trim() : '';
-    const explicitPhone = getVal('phones') ? String(getVal('phones')).trim() : '';
+    const explicitPhoneRaw = getVal('phones') ? String(getVal('phones')).trim() : '';
+    const explicitPhone = explicitPhoneRaw === '0' || explicitPhoneRaw === '-' ? '' : explicitPhoneRaw;
 
     // Telefon va manzilni ajratish
     const sourceTextForExtraction = `${explicitPhone} ${rawContract} ${explicitAddress}`;
     const { phones: extractedPhones, address: extractedAddress } = extractPhonesAndAddress(sourceTextForExtraction);
-    const phones = extractedPhones.length > 0 ? extractedPhones : (explicitPhone ? [explicitPhone] : []);
+    const digitsOnlyExplicit = explicitPhone.replace(/[^0-9]/g, '');
+    const phones = extractedPhones.length > 0
+      ? extractedPhones
+      : (digitsOnlyExplicit.length >= 7 ? [explicitPhone] : []);
+
+    // Telefon ustunidan faqat matnli yozuvlarni (masalan "Молия Жалил ака") ajratib olish, raqamlarni emas!
+    const { address: strippedPhoneNote } = extractPhonesAndAddress(explicitPhone);
+    const cleanPhoneNote = strippedPhoneNote && strippedPhoneNote !== '0' && strippedPhoneNote !== '-'
+      ? strippedPhoneNote
+      : undefined;
 
     const finalAddress = explicitAddress || extractedAddress || undefined;
 
@@ -213,7 +260,7 @@ export function parseExcelBuffer(buffer: Buffer): ExcelImportRowResult[] {
       fullName: fullNameRaw,
       address: finalAddress,
       phones,
-      phoneNote: explicitPhone && phones.length > 0 ? explicitPhone : undefined,
+      phoneNote: cleanPhoneNote,
       loanAmount: parseDecimal(getVal('loanAmount')),
       issuedAt: parseExcelDate(getVal('issuedAt')),
       closingAt: parseExcelDate(getVal('closingAt')),

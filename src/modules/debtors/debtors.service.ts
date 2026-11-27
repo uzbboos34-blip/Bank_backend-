@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import * as xlsx from 'xlsx';
 import { PrismaService } from '../../core/database/prisma.service';
 import { DebtorStatus, Prisma } from '@prisma/client';
@@ -42,7 +42,16 @@ export class DebtorsService {
    * Excel faylni import qilish va mavjud qarzdorlarni aqlli yangilash
    */
   async importDebtors(userId: number, fileBuffer: Buffer) {
-    const parsedRows = parseExcelBuffer(fileBuffer);
+    let parsedRows;
+    try {
+      parsedRows = parseExcelBuffer(fileBuffer);
+    } catch (err) {
+      throw new BadRequestException((err as Error).message || "Excel faylni o'qishda xatolik");
+    }
+
+    if (!parsedRows || parsedRows.length === 0) {
+      throw new BadRequestException("Noto'g'ri Excel fayl yoki ma'lumotlar bo'sh! Bank shablonidagi faylni yuklang.");
+    }
 
     let created = 0;
     let updated = 0;
@@ -128,6 +137,12 @@ export class DebtorsService {
           error: `Saqlashda xatolik: ${(err as Error).message}`,
         });
       }
+    }
+
+    if (created === 0 && updated === 0) {
+      throw new BadRequestException(
+        "Noto'g'ri Excel fayl! Birorta ham haqiqiy qarzdor qatori topilmadi. Bank shablonini tekshiring.",
+      );
     }
 
     const missingDebtors = existingDebtors.filter(

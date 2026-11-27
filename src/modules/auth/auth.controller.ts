@@ -1,6 +1,9 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, NotFoundException, Post, Res, UseGuards } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
+import type { Response } from 'express';
+import * as fs from 'fs';
+import * as path from 'path';
 import { Public } from 'src/common/decorators/public.decorator';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
@@ -27,18 +30,41 @@ export class AuthController {
   @Get('app-version')
   @ApiOperation({ summary: 'Mobil ilova OTA yangilanish versiyasini olish' })
   async getAppVersion() {
-    const frontendUrl = process.env.FRONTEND_URL || 'https://undiruv-bank.vercel.app';
+    const versionFile = path.join(process.cwd(), 'public', 'ota', 'version.json');
     try {
-      const res = await fetch(`${frontendUrl.replace(/\/$/, '')}/version.json?t=${Date.now()}`);
-      if (res.ok) {
-        const data = await res.json();
-        return { success: true, ...data };
+      if (fs.existsSync(versionFile)) {
+        const raw = fs.readFileSync(versionFile, 'utf-8');
+        const data = JSON.parse(raw);
+        const backendUrl = process.env.RENDER_EXTERNAL_URL || 'https://bank-backend-syzt.onrender.com';
+        return {
+          success: true,
+          version: data.version,
+          url: `${backendUrl.replace(/\/$/, '')}/auth/ota/update.zip`,
+          releasedAt: data.releasedAt,
+        };
       }
     } catch (e: any) {}
+
     return {
       success: true,
       version: '1.0.0',
-      url: `${frontendUrl}/update.zip`,
+      url: 'https://bank-backend-syzt.onrender.com/auth/ota/update.zip',
     };
+  }
+
+  @Public()
+  @Get('ota/update.zip')
+  @ApiOperation({ summary: 'Mobil ilova OTA yangilanish ZIP paketini yuklab olish' })
+  async downloadOtaBundle(@Res() res: Response) {
+    const zipPath = path.join(process.cwd(), 'public', 'ota', 'update.zip');
+    if (!fs.existsSync(zipPath)) {
+      throw new NotFoundException('Yangilanish paketi topilmadi');
+    }
+    res.set({
+      'Content-Type': 'application/zip',
+      'Content-Disposition': 'attachment; filename="update.zip"',
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+    });
+    fs.createReadStream(zipPath).pipe(res);
   }
 }

@@ -137,8 +137,16 @@ export function parseExcelBuffer(buffer: Buffer): ExcelImportRowResult[] {
     else if (norm.includes('minimal') || norm.includes('минимал') || norm.includes('mindebt')) columnIndexMap['minDebt'] = idx;
   });
 
-  if (columnIndexMap['externalId'] === undefined && columnIndexMap['fullName'] === undefined) {
-    throw new Error('Excel faylida kerakli ustunlar (ID yoki Mijoz nomi) topilmadi. Sarlavhalarni tekshiring.');
+  const hasDebtColumn =
+    columnIndexMap['principalDebt'] !== undefined ||
+    columnIndexMap['totalDebt'] !== undefined ||
+    columnIndexMap['minDebt'] !== undefined ||
+    columnIndexMap['loanAmount'] !== undefined;
+
+  if (columnIndexMap['externalId'] === undefined || columnIndexMap['fullName'] === undefined || !hasDebtColumn) {
+    throw new Error(
+      "Noto'g'ri Excel fayl! Bank qarzdorlar ro'yxati shabloniga mos kelmaydi (ID, Mijoz nomi va Qarz ustunlari bo'lishi shart).",
+    );
   }
 
   const results: ExcelImportRowResult[] = [];

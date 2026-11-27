@@ -67,6 +67,9 @@ export class DebtorsController {
     if (!file) {
       throw new BadRequestException('Iltimos, Excel faylni yuklang (field "file")');
     }
+    if (!/\.(xlsx|xls)$/i.test(file.originalname || '')) {
+      throw new BadRequestException("Noto'g'ri fayl formati! Faqat .xlsx yoki .xls Excel faylini yuklang.");
+    }
     return this.debtorsService.importDebtors(user.id, file.buffer);
   }
 

@@ -60,8 +60,10 @@ export class AuthController {
     if (!fs.existsSync(zipPath)) {
       throw new NotFoundException('Yangilanish paketi topilmadi');
     }
+    const stat = fs.statSync(zipPath);
     res.set({
       'Content-Type': 'application/zip',
+      'Content-Length': String(stat.size),
       'Content-Disposition': 'attachment; filename="update.zip"',
       'Cache-Control': 'no-cache, no-store, must-revalidate',
     });
